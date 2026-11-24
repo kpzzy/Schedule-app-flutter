@@ -5,6 +5,7 @@ Thumbs.db
 *.swo
 *.iml
 .idea/
+.fvm/
 
 # Local environment and credentials
 /credential.txt
@@ -31,6 +32,7 @@ Thumbs.db
 .flutter-plugins-dependencies
 build/
 coverage/
+*.tmp
 doc/api/
 *.symbols
 *.map.json
