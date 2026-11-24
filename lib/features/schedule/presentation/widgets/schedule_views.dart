@@ -5,6 +5,7 @@ import '../../../../app/app_theme.dart';
 import '../../../../core/calendar_date.dart';
 import '../../domain/day_timeline.dart';
 import '../../domain/schedule_item.dart';
+import '../../domain/schedule_preferences.dart';
 import 'schedule_tile.dart';
 
 class DayScheduleView extends StatelessWidget {
@@ -13,6 +14,7 @@ class DayScheduleView extends StatelessWidget {
     required this.date,
     required this.now,
     required this.items,
+    required this.preferences,
     required this.enabled,
     required this.onEdit,
     required this.onToggle,
@@ -22,6 +24,7 @@ class DayScheduleView extends StatelessWidget {
   final CalendarDate date;
   final DateTime now;
   final List<ScheduleItem> items;
+  final SchedulePreferences preferences;
   final bool enabled;
   final ValueChanged<ScheduleItem> onEdit;
   final ValueChanged<ScheduleItem> onToggle;
@@ -32,6 +35,12 @@ class DayScheduleView extends StatelessWidget {
     final untimed = items.where((item) => item.kind != ScheduleKind.timed);
     final hours = buildDayTimeline(date, items);
     final isToday = date == CalendarDate.fromLocal(now);
+    final startHour = preferences.startHour;
+    final earlyHours = hours.take(startHour);
+    final earlyCount = {
+      for (final slot in earlyHours)
+        for (final item in [...slot.starts, ...slot.continues]) item.id,
+    }.length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
       children: [
@@ -67,73 +76,89 @@ class DayScheduleView extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
-        for (final slot in hours)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 64,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(AppStrings.hour(slot.hour)),
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Divider(height: 1),
-                    if (isToday && now.hour == slot.hour)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          AppStrings.now(now),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                      ),
-                    for (final item in slot.continues)
-                      TextButton(
-                        onPressed: enabled ? () => onEdit(item) : null,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('${AppStrings.ongoing} · ${item.title}'),
-                        ),
-                      ),
-                    for (final item in slot.starts) _tile(item),
-                    if (slot.isSkipped)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Text(AppStrings.skippedTime),
-                      ),
-                    if (!slot.isOccupied && !slot.isSkipped)
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 56),
-                          alignment: Alignment.centerLeft,
-                        ),
-                        onPressed: enabled
-                            ? () => onAddAtHour(slot.hour)
-                            : null,
-                        child: Semantics(
-                          label: AppStrings.addAtHour(slot.hour),
-                          excludeSemantics: true,
-                          child: const Text(AppStrings.freeTime),
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                  ],
-                ),
-              ),
-            ],
+        if (startHour > 0)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(AppStrings.earlierHours(startHour)),
+            subtitle: earlyCount == 0 && !(isToday && now.hour < startHour)
+                ? null
+                : Text(
+                    [
+                      if (earlyCount > 0) AppStrings.count(earlyCount),
+                      if (isToday && now.hour < startHour) AppStrings.now(now),
+                    ].join(' · '),
+                  ),
+            children: [for (final slot in earlyHours) _hour(context, slot)],
           ),
+        for (final slot in hours.skip(startHour))
+          _hour(context, slot, showNow: isToday && now.hour == slot.hour),
       ],
     );
   }
 
+  Widget _hour(BuildContext context, DayHour slot, {bool showNow = false}) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 64,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(AppStrings.hour(slot.hour)),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Divider(height: 1),
+                if (showNow)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      AppStrings.now(now),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
+                for (final item in slot.continues)
+                  TextButton(
+                    onPressed: enabled ? () => onEdit(item) : null,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('${AppStrings.ongoing} · ${item.title}'),
+                    ),
+                  ),
+                for (final item in slot.starts) _tile(item),
+                if (slot.isSkipped)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Text(AppStrings.skippedTime),
+                  ),
+                if (!slot.isOccupied && !slot.isSkipped)
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(0, 56),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    onPressed: enabled ? () => onAddAtHour(slot.hour) : null,
+                    child: Semantics(
+                      label: AppStrings.addAtHour(slot.hour),
+                      excludeSemantics: true,
+                      child: const Text(AppStrings.freeTime),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        ],
+      );
+
   Widget _tile(ScheduleItem item) => ScheduleTile(
     item: item,
+    category: preferences.categoryFor(item.category),
     enabled: enabled,
     onEdit: () => onEdit(item),
     onToggle: () => onToggle(item),
@@ -145,6 +170,7 @@ class WeekScheduleView extends StatelessWidget {
     super.key,
     required this.selected,
     required this.items,
+    required this.preferences,
     required this.onOpenDay,
     required this.onEdit,
     required this.onToggle,
@@ -153,6 +179,7 @@ class WeekScheduleView extends StatelessWidget {
 
   final CalendarDate selected;
   final List<ScheduleItem> items;
+  final SchedulePreferences preferences;
   final ValueChanged<CalendarDate> onOpenDay;
   final ValueChanged<ScheduleItem> onEdit;
   final ValueChanged<ScheduleItem> onToggle;
@@ -231,6 +258,7 @@ class WeekScheduleView extends StatelessWidget {
           for (final item in dayItems)
             ScheduleTile(
               item: item,
+              category: preferences.categoryFor(item.category),
               enabled: enabled,
               onEdit: () => onEdit(item),
               onToggle: () => onToggle(item),

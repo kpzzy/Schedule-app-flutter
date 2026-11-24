@@ -7,15 +7,22 @@ import '../../../core/calendar_date.dart';
 import '../domain/schedule_item.dart';
 import 'schedule_controller.dart';
 import 'schedule_editor.dart';
+import 'schedule_preferences_controller.dart';
+import 'schedule_settings.dart';
 import 'widgets/month_schedule_view.dart';
 import 'widgets/schedule_views.dart';
 
 enum ScheduleView { day, week, month }
 
 class ScheduleHome extends StatefulWidget {
-  const ScheduleHome({super.key, required this.controller});
+  const ScheduleHome({
+    super.key,
+    required this.controller,
+    required this.preferences,
+  });
 
   final ScheduleController controller;
+  final SchedulePreferencesController preferences;
 
   @override
   State<ScheduleHome> createState() => _ScheduleHomeState();
@@ -72,7 +79,11 @@ class _ScheduleHomeState extends State<ScheduleHome>
   }
 
   Future<void> _edit({ScheduleItem? item, int? hour}) async {
-    if (!widget.controller.isReady || widget.controller.isSaving) return;
+    if (!widget.controller.isReady ||
+        widget.controller.isSaving ||
+        widget.preferences.isLoading) {
+      return;
+    }
     final series = item == null ? null : widget.controller.seriesFor(item);
     final target = series == null
         ? item
@@ -98,6 +109,7 @@ class _ScheduleHomeState extends State<ScheduleHome>
         fullscreenDialog: true,
         builder: (_) => ScheduleEditor(
           controller: widget.controller,
+          preferences: widget.preferences.value,
           selectedDate: _selected,
           item: target,
           initialHour: hour,
@@ -120,6 +132,14 @@ class _ScheduleHomeState extends State<ScheduleHome>
     _view = ScheduleView.day;
   });
 
+  void _openSettings() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ScheduleSettings(controller: widget.preferences),
+      ),
+    );
+  }
+
   String get _heading => switch (_view) {
     ScheduleView.day => AppStrings.date(_selected),
     ScheduleView.week =>
@@ -130,7 +150,7 @@ class _ScheduleHomeState extends State<ScheduleHome>
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
+    listenable: Listenable.merge([widget.controller, widget.preferences]),
     builder: (context, _) {
       final controller = widget.controller;
       return Scaffold(
@@ -143,6 +163,11 @@ class _ScheduleHomeState extends State<ScheduleHome>
                 _selected = CalendarDate.fromLocal(_now);
               }),
               child: const Text(AppStrings.today),
+            ),
+            IconButton(
+              tooltip: AppStrings.settings,
+              onPressed: _openSettings,
+              icon: const Icon(Icons.settings_outlined),
             ),
           ],
         ),
@@ -180,7 +205,9 @@ class _ScheduleHomeState extends State<ScheduleHome>
         floatingActionButton: controller.isReady
             ? FloatingActionButton(
                 tooltip: AppStrings.addSchedule,
-                onPressed: controller.isSaving ? null : () => _edit(),
+                onPressed: controller.isSaving || widget.preferences.isLoading
+                    ? null
+                    : () => _edit(),
                 child: const Icon(Icons.add),
               )
             : null,
@@ -236,13 +263,16 @@ class _ScheduleHomeState extends State<ScheduleHome>
         ),
       );
     }
+    final preferences = widget.preferences.value;
+    final enabled = !controller.isSaving && !widget.preferences.isLoading;
     return switch (_view) {
       ScheduleView.day => DayScheduleView(
-        key: ValueKey('day-$_selected'),
+        key: ValueKey('day-$_selected-${preferences.startHour}'),
         date: _selected,
         now: _now,
         items: controller.onDay(_selected),
-        enabled: !controller.isSaving,
+        preferences: preferences,
+        enabled: enabled,
         onEdit: (item) => _edit(item: item),
         onToggle: _toggle,
         onAddAtHour: (hour) => _edit(hour: hour),
@@ -257,7 +287,8 @@ class _ScheduleHomeState extends State<ScheduleHome>
         onOpenDay: _openDay,
         onEdit: (item) => _edit(item: item),
         onToggle: _toggle,
-        enabled: !controller.isSaving,
+        preferences: preferences,
+        enabled: enabled,
       ),
       ScheduleView.month => MonthScheduleView(
         key: ValueKey('month-${_selected.firstOfMonth}'),
@@ -270,7 +301,8 @@ class _ScheduleHomeState extends State<ScheduleHome>
         onOpenDay: _openDay,
         onEdit: (item) => _edit(item: item),
         onToggle: _toggle,
-        enabled: !controller.isSaving,
+        preferences: preferences,
+        enabled: enabled,
       ),
     };
   }

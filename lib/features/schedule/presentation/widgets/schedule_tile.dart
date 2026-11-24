@@ -1,26 +1,28 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/app_strings.dart';
-import '../../../../app/app_theme.dart';
 import '../../domain/schedule_item.dart';
+import '../../domain/schedule_preferences.dart';
 
 class ScheduleTile extends StatelessWidget {
   const ScheduleTile({
     super.key,
     required this.item,
+    required this.category,
     required this.onEdit,
     required this.onToggle,
     this.enabled = true,
   });
 
   final ScheduleItem item;
+  final ScheduleCategoryDefinition category;
   final VoidCallback onEdit;
   final VoidCallback onToggle;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.categoryColor(item.category);
+    final color = Color(category.color);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       color: color.withValues(alpha: 0.07),
@@ -48,7 +50,7 @@ class ScheduleTile extends StatelessWidget {
                     Text(AppStrings.itemTime(item)),
                     const SizedBox(height: 4),
                     Text(
-                      '${AppStrings.categoryName(item.category)}'
+                      '${category.name}'
                       '${item.origin != null ? ' · ${AppStrings.repeat}' : ''}'
                       '${item.isCompleted ? ' · ${AppStrings.completed}' : ''}',
                       style: TextStyle(color: color),

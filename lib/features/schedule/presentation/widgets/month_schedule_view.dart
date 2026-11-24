@@ -6,6 +6,7 @@ import '../../../../app/app_strings.dart';
 import '../../../../app/app_theme.dart';
 import '../../../../core/calendar_date.dart';
 import '../../domain/schedule_item.dart';
+import '../../domain/schedule_preferences.dart';
 import 'schedule_tile.dart';
 
 class MonthScheduleView extends StatelessWidget {
@@ -14,6 +15,7 @@ class MonthScheduleView extends StatelessWidget {
     required this.selected,
     required this.today,
     required this.items,
+    required this.preferences,
     required this.onOpenDay,
     required this.onEdit,
     required this.onToggle,
@@ -23,6 +25,7 @@ class MonthScheduleView extends StatelessWidget {
   final CalendarDate selected;
   final CalendarDate today;
   final List<ScheduleItem> items;
+  final SchedulePreferences preferences;
   final ValueChanged<CalendarDate> onOpenDay;
   final ValueChanged<ScheduleItem> onEdit;
   final ValueChanged<ScheduleItem> onToggle;
@@ -81,6 +84,7 @@ class MonthScheduleView extends StatelessWidget {
                 for (final item in day.value)
                   ScheduleTile(
                     item: item,
+                    category: preferences.categoryFor(item.category),
                     enabled: enabled,
                     onEdit: () => onEdit(item),
                     onToggle: () => onToggle(item),

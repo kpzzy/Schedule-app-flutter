@@ -20,6 +20,34 @@ abstract final class AppStrings {
   static const titleRequired = '제목을 입력해 주세요.';
   static const note = '메모';
   static const category = '카테고리';
+  static const settings = '환경설정';
+  static const dayStartHour = '일간 화면 시작 시각';
+  static const earlierHoursHint = '시작 시각 이전의 일정은 일간 화면에서 펼쳐 볼 수 있어요.';
+  static const settingsLoadFailure = '환경설정을 불러오지 못했습니다.';
+  static const manageCategories = '카테고리 관리';
+  static const addCategory = '카테고리 추가';
+  static const editCategory = '카테고리 수정';
+  static const deleteCategory = '카테고리 삭제';
+  static const categoryName = '이름';
+  static const categoryNameRequired = '카테고리 이름을 입력해 주세요.';
+  static const duplicateCategoryName = '이미 사용 중인 이름입니다.';
+  static const categoryColor = '색상';
+  static const categoryColorNames = [
+    '파랑',
+    '보라',
+    '초록',
+    '주황',
+    '빨강',
+    '청록',
+    '분홍',
+    '회색',
+  ];
+  static const deletedCategoryHint = '이 카테고리의 일정은 미분류로 표시됩니다.';
+  static const homeWidgetHelp = '휴대폰 홈 화면 위젯';
+  static const homeWidgetAndroid =
+      '홈 화면의 빈 곳을 길게 눌러 위젯에서 하루 계획을 추가하세요. 위젯의 점 세 개 버튼으로 일간·주간·월간을 바꾸고, 위젯을 길게 눌러 크기를 조절할 수 있어요.';
+  static const homeWidgetIos =
+      'iOS 17 이상에서 홈 화면의 위젯 갤러리를 열고 하루 계획을 추가하세요. 위젯을 길게 누른 뒤 위젯 편집의 보기 방식에서 일간·주간·월간을 선택할 수 있어요.';
   static const kind = '일정 유형';
   static const startDate = '시작 날짜';
   static const endDate = '종료 날짜';
@@ -91,12 +119,11 @@ abstract final class AppStrings {
     ScheduleKind.unscheduled => '시간 미정',
   };
 
-  static String categoryName(ScheduleCategory value) => switch (value) {
-    ScheduleCategory.work => '업무',
-    ScheduleCategory.study => '공부',
-    ScheduleCategory.health => '운동',
-    ScheduleCategory.personal => '개인',
-  };
+  static String namedCategoryAction(String action, String name) =>
+      '$action ($name)';
+
+  static String earlierHours(int startHour) =>
+      '이전 시간대 (00:00–${timeParts(startHour - 1, 59)})';
 
   static String date(CalendarDate value) =>
       '${value.year}년 ${value.month}월 ${value.day}일 (${weekdays[value.weekday - 1]})';

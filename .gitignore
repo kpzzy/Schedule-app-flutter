@@ -23,6 +23,11 @@ Thumbs.db
 *.p8
 *.mobileprovision
 
+# Local schedule, preferences, and widget data
+schedules.json
+schedule_preferences.json
+schedule-widget-v1.json
+
 # Flutter and Dart generated files (keep pubspec.lock for this app)
 .dart_tool/
 .packages

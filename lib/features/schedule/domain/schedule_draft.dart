@@ -43,7 +43,7 @@ final class ScheduleDraft {
   final String title;
   final String note;
   final ScheduleKind kind;
-  final ScheduleCategory category;
+  final String category;
   final CalendarDate startDate;
   final CalendarDate endDateInclusive;
   final int startHour;

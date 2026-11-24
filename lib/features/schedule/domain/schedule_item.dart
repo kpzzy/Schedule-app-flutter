@@ -5,7 +5,13 @@ import 'schedule_recurrence.dart';
 
 enum ScheduleKind { timed, allDay, unscheduled }
 
-enum ScheduleCategory { work, study, health, personal }
+abstract final class ScheduleCategory {
+  static const work = 'work';
+  static const study = 'study';
+  static const health = 'health';
+  static const personal = 'personal';
+  static const uncategorized = 'uncategorized';
+}
 
 typedef OccurrenceOrigin = ({String seriesId, CalendarDate date});
 
@@ -14,7 +20,7 @@ final class ScheduleItem {
     required String id,
     required String title,
     required ScheduleKind kind,
-    required ScheduleCategory category,
+    required String category,
     String note = '',
     bool isCompleted = false,
     DateTime? startsAt,
@@ -28,6 +34,9 @@ final class ScheduleItem {
   }) {
     if (id.trim().isEmpty || title.trim().isEmpty) {
       throw ArgumentError('ID and title must not be empty');
+    }
+    if (category.trim().isEmpty) {
+      throw ArgumentError('Category ID must not be empty');
     }
     if (kind == ScheduleKind.timed) {
       if (startsAt == null ||
@@ -104,7 +113,7 @@ final class ScheduleItem {
   final String id;
   final String title;
   final ScheduleKind kind;
-  final ScheduleCategory category;
+  final String category;
   final String note;
   final bool isCompleted;
   final DateTime? startsAt;
@@ -184,7 +193,7 @@ final class ScheduleItem {
     'id': id,
     'title': title,
     'kind': kind.name,
-    'category': category.name,
+    'category': category,
     'note': note,
     'isCompleted': isCompleted,
     'startsAt': startsAt?.toIso8601String(),
@@ -219,7 +228,7 @@ final class ScheduleItem {
       id: json['id'] as String,
       title: json['title'] as String,
       kind: ScheduleKind.values.byName(json['kind'] as String),
-      category: ScheduleCategory.values.byName(json['category'] as String),
+      category: json['category'] as String,
       note: json['note'] as String,
       isCompleted: json['isCompleted'] as bool,
       startsAt: instant('startsAt'),

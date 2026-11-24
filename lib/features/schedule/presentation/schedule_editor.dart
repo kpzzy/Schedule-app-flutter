@@ -5,6 +5,7 @@ import '../../../core/calendar_date.dart';
 import '../domain/schedule_draft.dart';
 import '../domain/schedule_item.dart';
 import '../domain/schedule_occurrences.dart';
+import '../domain/schedule_preferences.dart';
 import '../domain/schedule_recurrence.dart';
 import 'schedule_controller.dart';
 
@@ -12,12 +13,14 @@ class ScheduleEditor extends StatefulWidget {
   const ScheduleEditor({
     super.key,
     required this.controller,
+    required this.preferences,
     required this.selectedDate,
     this.item,
     this.initialHour,
   });
 
   final ScheduleController controller;
+  final SchedulePreferences preferences;
   final CalendarDate selectedDate;
   final ScheduleItem? item;
   final int? initialHour;
@@ -33,7 +36,7 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
   late final TextEditingController _note;
   late final String _id;
   late ScheduleKind _kind;
-  late ScheduleCategory _category;
+  late String _category;
   late CalendarDate _startDate;
   late CalendarDate _endDate;
   late TimeOfDay _startTime;
@@ -57,7 +60,9 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
         (widget.initialHour == null
             ? ScheduleKind.unscheduled
             : ScheduleKind.timed);
-    _category = item?.category ?? ScheduleCategory.personal;
+    _category =
+        item?.category ??
+        widget.preferences.categoryFor(ScheduleCategory.personal).id;
     _startDate = item?.startDate ?? widget.selectedDate;
     final recurrence = item?.recurrence;
     _frequency = recurrence?.frequency;
@@ -519,22 +524,28 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
                     ],
                     const SizedBox(height: 16),
                     if (widget.item?.origin == null) ..._repeatFields(),
-                    DropdownButtonFormField<ScheduleCategory>(
-                      initialValue: _category,
+                    DropdownButtonFormField<ScheduleCategoryDefinition>(
+                      initialValue: widget.preferences.categoryFor(_category),
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: AppStrings.category,
                       ),
                       items: [
-                        for (final category in ScheduleCategory.values)
+                        for (final category in [
+                          SchedulePreferences.uncategorized,
+                          ...widget.preferences.categories,
+                        ])
                           DropdownMenuItem(
                             value: category,
-                            child: Text(AppStrings.categoryName(category)),
+                            child: Text(
+                              category.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                       ],
                       onChanged: _busy
                           ? null
-                          : (value) => setState(() => _category = value!),
+                          : (value) => setState(() => _category = value!.id),
                     ),
                     const SizedBox(height: 20),
                     TextFormField(

@@ -5,6 +5,7 @@ import 'package:schedule_app/app/schedule_app.dart';
 import 'package:schedule_app/app/app_theme.dart';
 import 'package:schedule_app/core/calendar_date.dart';
 import 'package:schedule_app/features/schedule/domain/schedule_item.dart';
+import 'package:schedule_app/features/schedule/domain/schedule_preferences.dart';
 import 'package:schedule_app/features/schedule/domain/schedule_recurrence.dart';
 
 import 'support/fake_schedule_repository.dart';
@@ -22,6 +23,120 @@ Future<void> startApp(
 }
 
 void main() {
+  testWidgets('일간 시작 시각을 바꾸고 펼쳐서 이전 시간의 일정을 읽을 수 있다', (tester) async {
+    final today = CalendarDate.fromLocal(DateTime.now());
+    final repository = FakeScheduleRepository()
+      ..stored = [
+        ScheduleItem(
+          id: 'test-early',
+          title: '가상 이른 일정',
+          kind: ScheduleKind.timed,
+          category: ScheduleCategory.personal,
+          startsAt: DateTime(today.year, today.month, today.day, 6, 10),
+          endsAt: DateTime(today.year, today.month, today.day, 6, 40),
+        ),
+      ];
+    await startApp(tester, repository);
+    final earlier = find.text(AppStrings.earlierHours(7));
+    expect(find.text('07:00'), findsOneWidget);
+    expect(find.text('06:00'), findsNothing);
+    expect(find.textContaining(AppStrings.count(1)), findsOneWidget);
+    await tester.tap(earlier);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('가상 이른 일정'), 150);
+    expect(find.text('가상 이른 일정'), findsOneWidget);
+
+    await tester.tap(find.byTooltip(AppStrings.settings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('${AppStrings.dayStartHour} · 07:00'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('03:00'));
+    await tester.pumpAndSettle();
+    expect(find.text('${AppStrings.dayStartHour} · 03:00'), findsOneWidget);
+    await tester.tap(find.text(AppStrings.homeWidgetHelp));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.homeWidgetAndroid), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('03:00'), findsOneWidget);
+    expect(find.text(AppStrings.earlierHours(3)), findsOneWidget);
+  });
+
+  testWidgets('카테고리를 추가·수정·삭제하고 기존 일정은 미분류로 보인다', (tester) async {
+    final repository = FakeScheduleRepository();
+    const original = '가상 프로젝트';
+    const renamed = '가상 계획';
+    await startApp(tester, repository);
+    await tester.tap(find.byTooltip(AppStrings.settings));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.addCategory));
+    await tester.pumpAndSettle();
+    final name = find.byType(TextFormField);
+    await tester.enterText(name, ' 공부 ');
+    await tester.tap(find.text(AppStrings.save));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.duplicateCategoryName), findsOneWidget);
+    await tester.enterText(name, original);
+    final red = find.widgetWithText(ChoiceChip, '빨강');
+    await tester.ensureVisible(red);
+    await tester.tap(red);
+    await tester.tap(find.text(AppStrings.save));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip(AppStrings.addSchedule));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, '가상 카테고리 일정');
+    final picker = find.byType(
+      DropdownButtonFormField<ScheduleCategoryDefinition>,
+    );
+    await tester.ensureVisible(picker);
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(original));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.save));
+    await tester.pumpAndSettle();
+    final saved = repository.stored.single;
+    expect(
+      tester.widget<Text>(find.text(original)).style?.color,
+      const Color(0xFFAE2730),
+    );
+
+    await tester.tap(find.byTooltip(AppStrings.settings));
+    await tester.pumpAndSettle();
+    final edit = find.byTooltip(
+      AppStrings.namedCategoryAction(AppStrings.editCategory, original),
+    );
+    await tester.scrollUntilVisible(edit, 150);
+    await tester.tap(edit);
+    await tester.pumpAndSettle();
+    await tester.enterText(name, renamed);
+    await tester.tap(find.text(AppStrings.save));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text(renamed), findsOneWidget);
+    expect(repository.stored.single.category, saved.category);
+
+    await tester.tap(find.byTooltip(AppStrings.settings));
+    await tester.pumpAndSettle();
+    final delete = find.byTooltip(
+      AppStrings.namedCategoryAction(AppStrings.deleteCategory, renamed),
+    );
+    await tester.scrollUntilVisible(delete, 150);
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, AppStrings.delete));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text(saved.title), findsOneWidget);
+    expect(find.text(SchedulePreferences.uncategorized.name), findsOneWidget);
+    expect(repository.stored.single.id, saved.id);
+  });
+
   testWidgets('작은 월간 화면은 달력 아래에 전체 제목을 표시하고 주말 요일을 구분한다', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
