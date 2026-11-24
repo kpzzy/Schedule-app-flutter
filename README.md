@@ -15,6 +15,7 @@ Android·iOS용 Flutter 개인 스케줄 앱의 초기 프로젝트입니다. �
 - 시간 미정 할 일, 여러 날짜에 걸친 종일 일정
 - 겹치는 시간 안내와 겹침을 허용하는 저장
 - 기기 내 JSON 자동 저장, 읽기·쓰기 실패 처리
+- 홈 화면 위젯별 일간·주간·월간 선택, 표시 크기에 맞춘 요약과 상세 보기
 
 처음 실행하면 빈 목록으로 시작합니다. 실제 일정이나 예시 데이터를 앱에 넣지 않았습니다. 반복 일정, 알림, 드래그 이동, 계정·동기화·백업 기능은 후속 범위입니다. 현재 시간표는 시간별 목록과 진행 중 표시를 사용하며, 일정 길이에 비례한 드래그 블록 UI는 구현하지 않았습니다.
 
@@ -28,6 +29,7 @@ Android·iOS용 Flutter 개인 스케줄 앱의 초기 프로젝트입니다. �
 | Android 빌드 | JDK 25 또는 JDK 21, Android SDK Platform 36, Build Tools 36.0.0, SDK 명령줄 도구 |
 | Android 플러그인 | AGP 9.3.1, Gradle 9.5.0, Kotlin 2.4.20 |
 | iOS | iOS 13.0 이상, macOS·Xcode·CocoaPods 필요 |
+| iOS 홈 화면 위젯 | iOS 17 이상, 본 앱과 위젯에 같은 App Group 필요 |
 | 앱 식별자 | Android `com.example.schedule_app`, iOS `com.example.scheduleApp` — 개발용 자리표시자 |
 
 Android는 [Flutter 3.50.1 공식 템플릿](https://github.com/flutter/flutter/tree/3.50.1/packages/flutter_tools/templates/app)의 Gradle, AGP, Kotlin 버전을 사용합니다. Gradle을 실행하는 JDK 버전과 Android 앱의 Java·Kotlin 컴파일 대상은 별개이며, 컴파일 대상은 JVM 17로 설정합니다. [AGP 호환성 표](https://developer.android.com/build/releases/agp-9-3-0-release-notes), [Gradle의 Java 호환성](https://docs.gradle.org/9.5.0/userguide/compatibility.html#java)
@@ -82,7 +84,17 @@ flutter build ios --simulator
 open ios/Runner.xcworkspace
 ```
 
-시뮬레이터를 시작한 뒤 프로젝트 루트에서 `flutter run`을 실행할 수도 있습니다. 실제 기기 실행은 Xcode의 Runner → Signing & Capabilities에서 자신의 Team과 Bundle Identifier를 설정합니다. 개인 서명 정보는 소스에 고정하지 않습니다. Ubuntu에서는 iOS 빌드·시뮬레이터 실행을 할 수 없습니다.
+시뮬레이터를 시작한 뒤 프로젝트 루트에서 `flutter run`을 실행할 수도 있습니다. 실제 기기에서 홈 위젯과 함께 실행할 때는 Xcode의 **Runner 프로젝트 → Build Settings**에서 `SCHEDULE_APP_BUNDLE_ID`를 본인의 앱 식별자로 설정합니다. **Runner**와 **ScheduleWidget** 타깃의 **Signing & Capabilities**에서 같은 Team과 `group.<앱 식별자>` App Group을 등록합니다. 두 타깃의 Bundle Identifier와 공유 저장소 이름은 이 설정에서 파생됩니다. 개인 서명 정보는 소스에 고정하지 않습니다. [Apple App Group 설정](https://developer.apple.com/documentation/xcode/configuring-app-groups)
+
+### 홈 화면 위젯
+
+1. 앱을 한 번 열어 일정을 불러옵니다.
+2. **Android**에서는 홈 화면의 빈 곳을 길게 눌러 **위젯 → 하루 계획**을 추가한 뒤 일간·주간·월간 중 하나를 선택합니다. 위젯의 점 세 개 버튼으로 보기 방식을 다시 선택할 수 있습니다. 크기는 런처의 조절 핸들로 바꿉니다. [Android 위젯 안내](https://developer.android.com/develop/ui/views/appwidgets)
+3. **iOS 17 이상**에서는 위젯 갤러리에서 **하루 계획**을 원하는 시스템 크기로 추가합니다. 위젯을 길게 누른 뒤 **위젯 편집 → 보기 방식**에서 일간·주간·월간 중 하나를 고릅니다. [WidgetKit 보기 방식 설정](https://developer.apple.com/documentation/widgetkit/making-a-configurable-widget)
+
+작은 위젯에서는 일정 개수와 짧은 목록을 표시합니다. 공간이 넓으면 일간은 시간과 제목, 주간은 요일별 분포, 월간은 날짜별 일정 개수를 달력으로 보여줍니다. 위젯을 여러 개 두고 각각 다른 보기 방식을 선택할 수 있습니다.
+
+위젯은 현재 달부터 세 달간의 읽기 전용 일정 요약을 사용합니다. 요약에는 일정 제목과 시간, 완료 상태가 포함되며 앱에서 일정을 저장하거나 다시 열 때 갱신됩니다. 위젯에 표시된 일정은 앱에서 편집합니다. 운영체제와 런처에 따라 반영 시점이 달라질 수 있습니다.
 
 ## 코드 구조
 
@@ -117,9 +129,9 @@ test/                                      # 날짜·모델·저장소·상태·
 
 ## 검증 상태와 다음 확인
 
-서버의 임시 Flutter 3.50.1 환경에서 의존성 해결, Dart 포맷, 정적 분석과 단위·위젯 테스트 33개를 확인했습니다. 날짜 경계와 일정 저장·복원, 오류 복구, 화면 전환, 한국어 날짜·시간 선택기를 검증했습니다.
+서버의 임시 Flutter 3.50.1 환경에서 Dart 포맷, 정적 분석과 단위·위젯 테스트 36개를 확인했습니다. 위젯 요약은 자정을 넘는 일정의 일간·주간 집계와 채널 전송 실패 후 재시도를 검증했습니다. Android 위젯 Kotlin 소스는 API 36과 Flutter 임베딩을 대상으로 컴파일했고, iOS 확장 타깃과 App Group 구성은 파일 구조를 점검했습니다.
 
-Android APK 빌드는 서버의 Android SDK 부재로 시작 단계에서 중단됐습니다. Windows의 Java 25 환경에서 `flutter build apk --debug`와 기기 실행을 확인해야 합니다. iOS 빌드와 시뮬레이터 실행은 macOS에서 확인합니다.
+전체 APK 빌드와 Android 런처에서 위젯 추가·크기 조절은 Android 개발 환경과 기기에서 확인합니다. iOS 빌드와 WidgetKit 시뮬레이터 실행은 macOS에서 확인합니다.
 
 로컬에서는 위의 공통 명령을 실행하고 다음 흐름을 확인합니다.
 
@@ -128,6 +140,7 @@ Android APK 빌드는 서버의 Android SDK 부재로 시작 단계에서 중단
 3. 23:47~다음 날 01:13, 정확히 자정에 끝나는 일정, 월말의 여러 날 종일 일정
 4. 작은 기기, 큰 글자, 키보드가 표시된 편집 화면, 가로 화면
 5. Android와 iOS에서 각각 날짜·시간 선택기와 저장 실패 안내
+6. 홈 화면에 크기와 보기 방식이 다른 위젯 두 개를 추가하고 모드 변경, 크기 변경, 일정 저장·삭제 반영 확인
 
 Linux·macOS에서는 다른 시간대에서도 공통 날짜 테스트를 실행할 수 있습니다.
 
