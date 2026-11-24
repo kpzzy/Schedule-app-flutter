@@ -1,5 +1,6 @@
 import '../core/calendar_date.dart';
 import '../features/schedule/domain/schedule_item.dart';
+import '../features/schedule/domain/schedule_recurrence.dart';
 
 /// Keep app-owned Korean copy here; Flutter localizes its built-in pickers.
 abstract final class AppStrings {
@@ -54,7 +55,35 @@ abstract final class AppStrings {
   static const weekHint = '시간 막대에서 일정이 있는 구간을 확인하세요.';
   static const overlapHint = '다른 일정과 시간이 겹칩니다. 그대로 저장할 수 있어요.';
   static const allDayHint = '종료 날짜까지 포함합니다.';
+  static const monthAgenda = '이번 달 일정';
+  static const emptyMonth = '이 달에 등록된 일정이 없어요.';
+  static const repeat = '반복';
+  static const noRepeat = '반복 안 함';
+  static const repeatDays = '반복 요일';
+  static const firstWeek = '1주차';
+  static const secondWeek = '2주차';
+  static const repeatWeeksHint = '시작일이 속한 월요일부터 1주차로 계산하며 시작일 이전은 제외합니다.';
+  static const repeatEnd = '반복 종료일';
+  static const noRepeatEnd = '종료일 없음';
+  static const invalidRepeatDays = '반복할 요일을 하나 이상 골라 주세요.';
+  static const invalidRepeatEnd = '반복 종료일은 시작일과 같거나 뒤여야 합니다.';
+  static const invalidRepeatWindow = '선택한 요일에 해당하는 날짜가 없습니다. 종료일이나 요일을 바꿔 주세요.';
+  static const chooseRepeatScope = '어느 일정을 편집할까요?';
+  static const editOccurrence = '이 날짜의 일정만';
+  static const editSeries = '반복 일정 전체';
+  static const deleteOccurrence = '이 날짜의 일정만 삭제할까요?';
+  static const deleteSeries = '반복 일정 전체를 삭제할까요?';
+  static const occurrenceDeleteMessage = '다른 날짜의 반복 일정은 그대로 유지됩니다.';
+  static const seriesDeleteMessage = '개별 수정하거나 완료한 날짜의 일정도 함께 삭제됩니다.';
   static const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+
+  static String repeatName(RecurrenceFrequency? frequency) =>
+      switch (frequency) {
+        null => noRepeat,
+        RecurrenceFrequency.daily => '매일',
+        RecurrenceFrequency.weekly => '매주',
+        RecurrenceFrequency.alternatingWeeks => '격주 (1·2주차)',
+      };
 
   static String kindName(ScheduleKind value) => switch (value) {
     ScheduleKind.timed => '시간 지정',
@@ -78,6 +107,7 @@ abstract final class AppStrings {
   static String monthTitle(CalendarDate value) =>
       '${value.year}년 ${value.month}월';
   static String count(int count) => '일정 $count개';
+  static String compactCount(int count) => '$count개';
   static String completedCount(int done, int total) => '$total개 중 $done개 완료';
   static String more(int count) => '+$count개';
   static String now(DateTime value) => '현재 ${time(value)}';

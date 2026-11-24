@@ -49,6 +49,7 @@ class ScheduleTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${AppStrings.categoryName(item.category)}'
+                      '${item.origin != null ? ' · ${AppStrings.repeat}' : ''}'
                       '${item.isCompleted ? ' · ${AppStrings.completed}' : ''}',
                       style: TextStyle(color: color),
                     ),

@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
@@ -187,7 +188,7 @@ private class WidgetRenderer(private val context: Context, private val data: JSO
                 if (width >= 220 * fontScale && height >= 238 * fontScale) {
                     val first = offset(month, -mondayIndex(month))
                     val header = RemoteViews(context.packageName, R.layout.schedule_widget_grid_row)
-                    weekdays.forEach { weekday -> addCell(header, weekday) }
+                    weekdays.forEachIndexed { index, weekday -> addCell(header, weekday, weekdayIndex = index) }
                     root.addView(R.id.widget_details, header)
                     for (week in 0..5) {
                         gridRow(root, (0..6).map { offset(first, week * 7 + it) }, month = month.get(Calendar.MONTH))
@@ -221,7 +222,7 @@ private class WidgetRenderer(private val context: Context, private val data: JSO
                 val count = dayCount(day)
                 val number = day.get(Calendar.DAY_OF_MONTH)
                 val label = if (showWeekday) "${weekday(day)} $number\n$count" else "$number${if (count > 0) "\n$count" else ""}"
-                addCell(row, label, daySummary(day), key(day) == todayKey)
+                addCell(row, label, daySummary(day), key(day) == todayKey, mondayIndex(day))
             } else {
                 addCell(row, "")
             }
@@ -229,10 +230,14 @@ private class WidgetRenderer(private val context: Context, private val data: JSO
         root.addView(R.id.widget_details, row)
     }
 
-    private fun addCell(row: RemoteViews, label: String, description: String = label, highlight: Boolean = false) {
+    private fun addCell(row: RemoteViews, label: String, description: String = label, highlight: Boolean = false, weekdayIndex: Int? = null) {
         val cell = RemoteViews(context.packageName, R.layout.schedule_widget_grid_cell)
         cell.setTextViewText(R.id.widget_grid_cell, label)
         cell.setContentDescription(R.id.widget_grid_cell, description)
+        when (weekdayIndex) {
+            5 -> cell.setTextColor(R.id.widget_grid_cell, Color.rgb(35, 86, 170))
+            6 -> cell.setTextColor(R.id.widget_grid_cell, Color.rgb(174, 39, 48))
+        }
         if (highlight) {
             cell.setInt(R.id.widget_grid_cell, "setBackgroundResource", R.drawable.schedule_widget_today)
         }

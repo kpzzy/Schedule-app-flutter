@@ -1,7 +1,17 @@
 import '../../../core/calendar_date.dart';
 import 'schedule_item.dart';
+import 'schedule_occurrences.dart';
+import 'schedule_recurrence.dart';
 
-enum ScheduleInputError { title, dateRange, timeRange, localTime }
+enum ScheduleInputError {
+  title,
+  dateRange,
+  timeRange,
+  localTime,
+  recurrenceDays,
+  recurrenceEnd,
+  recurrenceEmpty,
+}
 
 final class ScheduleInputException implements Exception {
   const ScheduleInputException(this.reason);
@@ -23,6 +33,10 @@ final class ScheduleDraft {
     required this.endHour,
     required this.endMinute,
     required this.isCompleted,
+    this.frequency,
+    this.firstWeek = const {},
+    this.secondWeek = const {},
+    this.repeatUntil,
   });
 
   final String id;
@@ -37,6 +51,10 @@ final class ScheduleDraft {
   final int endHour;
   final int endMinute;
   final bool isCompleted;
+  final RecurrenceFrequency? frequency;
+  final Set<int> firstWeek;
+  final Set<int> secondWeek;
+  final CalendarDate? repeatUntil;
 
   DateTime _instant(CalendarDate date, int hour, int minute) {
     final value = DateTime(date.year, date.month, date.day, hour, minute);
@@ -64,7 +82,18 @@ final class ScheduleDraft {
         endDateInclusive.compareTo(startDate) < 0) {
       throw const ScheduleInputException(ScheduleInputError.dateRange);
     }
-    return ScheduleItem(
+    final type = frequency;
+    final until = repeatUntil;
+    if (type != null && until != null && until.compareTo(startDate) < 0) {
+      throw const ScheduleInputException(ScheduleInputError.recurrenceEnd);
+    }
+    if (type == RecurrenceFrequency.weekly && firstWeek.isEmpty ||
+        type == RecurrenceFrequency.alternatingWeeks &&
+            firstWeek.isEmpty &&
+            secondWeek.isEmpty) {
+      throw const ScheduleInputException(ScheduleInputError.recurrenceDays);
+    }
+    final item = ScheduleItem(
       id: id,
       title: title,
       kind: kind,
@@ -77,6 +106,33 @@ final class ScheduleDraft {
       endDateExclusive: kind == ScheduleKind.allDay
           ? endDateInclusive.addDays(1)
           : null,
+      recurrence: type == null
+          ? null
+          : ScheduleRecurrence(
+              frequency: type,
+              startsOn: startDate,
+              until: until,
+              daySpan: kind == ScheduleKind.unscheduled
+                  ? 0
+                  : startDate.daysUntil(endDateInclusive),
+              startMinute: kind == ScheduleKind.timed
+                  ? startHour * 60 + startMinute
+                  : null,
+              endMinute: kind == ScheduleKind.timed
+                  ? endHour * 60 + endMinute
+                  : null,
+              firstWeek: type == RecurrenceFrequency.daily
+                  ? const {}
+                  : firstWeek,
+              secondWeek: type == RecurrenceFrequency.alternatingWeeks
+                  ? secondWeek
+                  : const {},
+            ),
     );
+    if (type != null &&
+        scheduleOccurrences([item], startDate, startDate.addDays(28)).isEmpty) {
+      throw const ScheduleInputException(ScheduleInputError.recurrenceEmpty);
+    }
+    return item;
   }
 }

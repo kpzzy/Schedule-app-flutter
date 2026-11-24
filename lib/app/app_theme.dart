@@ -24,4 +24,10 @@ abstract final class AppTheme {
     ScheduleCategory.health => const Color(0xFF287453),
     ScheduleCategory.personal => const Color(0xFFAA5B2C),
   };
+
+  static Color? weekendColor(int weekday) => switch (weekday) {
+    DateTime.saturday => const Color(0xFF2356AA),
+    DateTime.sunday => const Color(0xFFAE2730),
+    _ => null,
+  };
 }

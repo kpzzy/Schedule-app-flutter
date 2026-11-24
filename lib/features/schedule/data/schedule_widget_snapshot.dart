@@ -1,6 +1,7 @@
 import '../../../app/app_strings.dart';
 import '../../../core/calendar_date.dart';
 import '../domain/schedule_item.dart';
+import '../domain/schedule_occurrences.dart';
 
 /// A bounded, read-only projection shared by Android and iOS widgets.
 Map<String, Object> buildScheduleWidgetSnapshot(
@@ -11,7 +12,8 @@ Map<String, Object> buildScheduleWidgetSnapshot(
   final endMonth = firstMonth.addMonths(3);
   final firstDay = firstMonth.startOfWeek;
   final lastDay = endMonth.addDays(7);
-  final displayOrder = [...items]
+  final instances = scheduleOccurrences(items, firstDay, lastDay).toList();
+  final displayOrder = [...instances]
     ..sort((a, b) {
       final kind = a.kind.index.compareTo(b.kind.index);
       if (kind != 0) return kind;
@@ -41,11 +43,11 @@ Map<String, Object> buildScheduleWidgetSnapshot(
       ],
     };
     if (day.weekday == DateTime.monday && day.compareTo(endMonth) < 0) {
-      weeks[day.toString()] = _count(items, day, day.addDays(7));
+      weeks[day.toString()] = _count(instances, day, day.addDays(7));
     }
     if (day.day == 1 && day.compareTo(endMonth) < 0) {
       months[day.toString().substring(0, 7)] = _count(
-        items,
+        instances,
         day,
         day.addMonths(1),
       );

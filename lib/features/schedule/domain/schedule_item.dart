@@ -1,10 +1,13 @@
 import 'dart:math';
 
 import '../../../core/calendar_date.dart';
+import 'schedule_recurrence.dart';
 
 enum ScheduleKind { timed, allDay, unscheduled }
 
 enum ScheduleCategory { work, study, health, personal }
+
+typedef OccurrenceOrigin = ({String seriesId, CalendarDate date});
 
 final class ScheduleItem {
   factory ScheduleItem({
@@ -18,6 +21,10 @@ final class ScheduleItem {
     DateTime? endsAt,
     CalendarDate? date,
     CalendarDate? endDateExclusive,
+    ScheduleRecurrence? recurrence,
+    Map<CalendarDate, ScheduleItem?> overrides = const {},
+    Set<CalendarDate> completedDates = const {},
+    OccurrenceOrigin? origin,
   }) {
     if (id.trim().isEmpty || title.trim().isEmpty) {
       throw ArgumentError('ID and title must not be empty');
@@ -42,6 +49,23 @@ final class ScheduleItem {
         throw ArgumentError('An unscheduled item has a single calendar date');
       }
     }
+    if (recurrence == null &&
+            (overrides.isNotEmpty || completedDates.isNotEmpty) ||
+        recurrence != null &&
+            (origin != null ||
+                (kind == ScheduleKind.timed) !=
+                    (recurrence.startMinute != null))) {
+      throw ArgumentError('Invalid recurrence item');
+    }
+    for (final entry in overrides.entries) {
+      final replacement = entry.value;
+      if (replacement != null &&
+          (replacement.recurrence != null ||
+              replacement.origin != null ||
+              replacement.id != occurrenceId(id, entry.key))) {
+        throw ArgumentError('Invalid recurrence replacement');
+      }
+    }
     return ScheduleItem._(
       id: id,
       title: title.trim(),
@@ -53,6 +77,10 @@ final class ScheduleItem {
       endsAt: endsAt?.toUtc(),
       date: date,
       endDateExclusive: endDateExclusive,
+      recurrence: recurrence,
+      overrides: Map.unmodifiable(overrides),
+      completedDates: Set.unmodifiable(completedDates),
+      origin: origin,
     );
   }
 
@@ -67,6 +95,10 @@ final class ScheduleItem {
     this.endsAt,
     this.date,
     this.endDateExclusive,
+    this.recurrence,
+    this.overrides = const {},
+    this.completedDates = const {},
+    this.origin,
   });
 
   final String id;
@@ -79,8 +111,16 @@ final class ScheduleItem {
   final DateTime? endsAt;
   final CalendarDate? date;
   final CalendarDate? endDateExclusive;
+  final ScheduleRecurrence? recurrence;
+  final Map<CalendarDate, ScheduleItem?> overrides;
+  final Set<CalendarDate> completedDates;
+  final OccurrenceOrigin? origin;
 
-  CalendarDate get startDate => date ?? CalendarDate.fromLocal(startsAt!);
+  CalendarDate get startDate =>
+      recurrence?.startsOn ?? date ?? CalendarDate.fromLocal(startsAt!);
+
+  static String occurrenceId(String seriesId, CalendarDate date) =>
+      '$seriesId@$date';
 
   bool occursOn(CalendarDate day) => occursIn(day, day.addDays(1));
 
@@ -103,17 +143,41 @@ final class ScheduleItem {
       startsAt!.isBefore(other.endsAt!) &&
       endsAt!.isAfter(other.startsAt!);
 
-  ScheduleItem withCompleted(bool value) => ScheduleItem._(
+  ScheduleItem withCompleted(bool value) =>
+      _copy(completed: value, occurrence: origin);
+
+  ScheduleItem withOrigin(OccurrenceOrigin? value) => _copy(occurrence: value);
+
+  ScheduleItem withSeriesChanges({
+    Map<CalendarDate, ScheduleItem?>? overrides,
+    Set<CalendarDate>? completedDates,
+  }) => _copy(
+    replacements: overrides == null ? null : Map.unmodifiable(overrides),
+    completedDays: completedDates == null
+        ? null
+        : Set.unmodifiable(completedDates),
+  );
+
+  ScheduleItem _copy({
+    bool? completed,
+    OccurrenceOrigin? occurrence,
+    Map<CalendarDate, ScheduleItem?>? replacements,
+    Set<CalendarDate>? completedDays,
+  }) => ScheduleItem._(
     id: id,
     title: title,
     kind: kind,
     category: category,
     note: note,
-    isCompleted: value,
+    isCompleted: completed ?? isCompleted,
     startsAt: startsAt,
     endsAt: endsAt,
     date: date,
     endDateExclusive: endDateExclusive,
+    recurrence: recurrence,
+    overrides: replacements ?? overrides,
+    completedDates: completedDays ?? completedDates,
+    origin: occurrence,
   );
 
   Map<String, Object?> toJson() => {
@@ -127,6 +191,15 @@ final class ScheduleItem {
     'endsAt': endsAt?.toIso8601String(),
     'date': date?.toString(),
     'endDateExclusive': endDateExclusive?.toString(),
+    if (recurrence case final rule?) 'recurrence': rule.toJson(),
+    if (overrides.isNotEmpty)
+      'overrides': {
+        for (final entry in overrides.entries)
+          entry.key.toString(): entry.value?.toJson(),
+      },
+    if (completedDates.isNotEmpty)
+      'completedDates': completedDates.map((day) => day.toString()).toList()
+        ..sort(),
   };
 
   factory ScheduleItem.fromJson(Map<String, Object?> json) {
@@ -140,6 +213,8 @@ final class ScheduleItem {
       return parsed;
     }
 
+    final rule = json['recurrence'] as Map<String, Object?>?;
+    final replacements = json['overrides'] as Map<String, Object?>? ?? {};
     return ScheduleItem(
       id: json['id'] as String,
       title: json['title'] as String,
@@ -155,6 +230,17 @@ final class ScheduleItem {
       endDateExclusive: json['endDateExclusive'] == null
           ? null
           : CalendarDate.parse(json['endDateExclusive'] as String),
+      recurrence: rule == null ? null : ScheduleRecurrence.fromJson(rule),
+      overrides: {
+        for (final entry in replacements.entries)
+          CalendarDate.parse(entry.key): entry.value == null
+              ? null
+              : ScheduleItem.fromJson(entry.value as Map<String, Object?>),
+      },
+      completedDates: (json['completedDates'] as List<Object?>? ?? const [])
+          .cast<String>()
+          .map(CalendarDate.parse)
+          .toSet(),
     );
   }
 

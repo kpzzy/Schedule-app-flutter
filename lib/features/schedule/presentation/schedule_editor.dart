@@ -4,6 +4,8 @@ import '../../../app/app_strings.dart';
 import '../../../core/calendar_date.dart';
 import '../domain/schedule_draft.dart';
 import '../domain/schedule_item.dart';
+import '../domain/schedule_occurrences.dart';
+import '../domain/schedule_recurrence.dart';
 import 'schedule_controller.dart';
 
 class ScheduleEditor extends StatefulWidget {
@@ -36,6 +38,10 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
   late CalendarDate _endDate;
   late TimeOfDay _startTime;
   late TimeOfDay _endTime;
+  RecurrenceFrequency? _frequency;
+  CalendarDate? _repeatUntil;
+  late final Set<int> _firstWeek;
+  late final Set<int> _secondWeek;
   bool _busy = false;
   String? _error;
 
@@ -53,6 +59,11 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
             : ScheduleKind.timed);
     _category = item?.category ?? ScheduleCategory.personal;
     _startDate = item?.startDate ?? widget.selectedDate;
+    final recurrence = item?.recurrence;
+    _frequency = recurrence?.frequency;
+    _repeatUntil = recurrence?.until;
+    _firstWeek = {...?recurrence?.firstWeek};
+    _secondWeek = {...?recurrence?.secondWeek};
     final hour = widget.initialHour ?? 9;
     final start = item?.startsAt?.toLocal();
     final end = item?.endsAt?.toLocal();
@@ -69,6 +80,15 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
             ScheduleKind.allDay => item.endDateExclusive!.addDays(-1),
             ScheduleKind.unscheduled => _startDate,
           };
+    if (recurrence != null) {
+      _endDate = _startDate.addDays(recurrence.daySpan);
+      if (recurrence.startMinute case final minute?) {
+        _startTime = TimeOfDay(hour: minute ~/ 60, minute: minute % 60);
+      }
+      if (recurrence.endMinute case final minute?) {
+        _endTime = TimeOfDay(hour: minute ~/ 60, minute: minute % 60);
+      }
+    }
   }
 
   @override
@@ -97,13 +117,28 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
     endHour: _endTime.hour,
     endMinute: _endTime.minute,
     isCompleted: widget.item?.isCompleted ?? false,
-  ).build();
+    frequency: _frequency,
+    firstWeek: _firstWeek,
+    secondWeek: _secondWeek,
+    repeatUntil: _repeatUntil,
+  ).build().withOrigin(widget.item?.origin);
 
   bool get _hasOverlap {
     try {
       final candidate = _buildItem();
-      return widget.controller.items.any(
-        (item) => item.id != candidate.id && item.overlaps(candidate),
+      if (candidate.kind != ScheduleKind.timed) return false;
+      final until = _startDate.addDays(candidate.recurrence == null ? 1 : 14);
+      final scheduled = widget.controller.inRange(
+        _startDate,
+        until.addDays(_startDate.daysUntil(_endDate)),
+      );
+      return scheduleOccurrences([candidate], _startDate, until).any(
+        (occurrence) => scheduled.any(
+          (item) =>
+              item.id != candidate.id &&
+              item.origin?.seriesId != candidate.id &&
+              item.overlaps(occurrence),
+        ),
       );
     } on ScheduleInputException {
       return false;
@@ -153,6 +188,126 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
     });
   }
 
+  Future<void> _pickRepeatEnd() async {
+    final chosen = _repeatUntil;
+    final initial = chosen != null && chosen.compareTo(_startDate) >= 0
+        ? chosen
+        : _startDate;
+    final value = await showDatePicker(
+      context: context,
+      initialDate: initial.localMidnight,
+      firstDate: _startDate.localMidnight,
+      lastDate: DateTime(initial.year > 2100 ? initial.year : 2100, 12, 31),
+    );
+    if (value != null && mounted) {
+      setState(() {
+        _repeatUntil = CalendarDate.fromLocal(value);
+        _error = null;
+      });
+    }
+  }
+
+  List<Widget> _repeatFields() => [
+    DropdownButtonFormField<String>(
+      initialValue: _frequency?.name ?? '',
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: AppStrings.repeat),
+      items: [
+        const DropdownMenuItem(value: '', child: Text(AppStrings.noRepeat)),
+        for (final frequency in RecurrenceFrequency.values)
+          DropdownMenuItem(
+            value: frequency.name,
+            child: Text(AppStrings.repeatName(frequency)),
+          ),
+      ],
+      onChanged: _busy
+          ? null
+          : (value) => setState(() {
+              _frequency = value == null || value.isEmpty
+                  ? null
+                  : RecurrenceFrequency.values.byName(value);
+              if (_frequency == RecurrenceFrequency.weekly &&
+                      _firstWeek.isEmpty ||
+                  _frequency == RecurrenceFrequency.alternatingWeeks &&
+                      _firstWeek.isEmpty &&
+                      _secondWeek.isEmpty) {
+                _firstWeek.add(_startDate.weekday);
+              }
+              _error = null;
+            }),
+    ),
+    if (_frequency == RecurrenceFrequency.weekly)
+      _weekdays(AppStrings.repeatDays, _firstWeek),
+    if (_frequency == RecurrenceFrequency.alternatingWeeks) ...[
+      const Padding(
+        padding: EdgeInsets.only(top: 12),
+        child: Text(AppStrings.repeatWeeksHint),
+      ),
+      _weekdays(AppStrings.firstWeek, _firstWeek),
+      _weekdays(AppStrings.secondWeek, _secondWeek),
+    ],
+    if (_frequency != null)
+      Row(
+        children: [
+          Expanded(
+            child: _pickerTile(
+              label: AppStrings.repeatEnd,
+              value: _repeatUntil == null
+                  ? AppStrings.noRepeatEnd
+                  : AppStrings.date(_repeatUntil!),
+              icon: Icons.event_repeat,
+              onTap: _pickRepeatEnd,
+            ),
+          ),
+          if (_repeatUntil != null)
+            IconButton(
+              tooltip: AppStrings.noRepeatEnd,
+              onPressed: _busy
+                  ? null
+                  : () => setState(() {
+                      _repeatUntil = null;
+                      _error = null;
+                    }),
+              icon: const Icon(Icons.clear),
+            ),
+        ],
+      ),
+    const SizedBox(height: 16),
+  ];
+
+  Widget _weekdays(String label, Set<int> selected) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (var day = 1; day <= 7; day++)
+              Semantics(
+                label: '$label ${AppStrings.weekdays[day - 1]}',
+                child: FilterChip(
+                  label: Text(AppStrings.weekdays[day - 1]),
+                  selected: selected.contains(day),
+                  onSelected: _busy
+                      ? null
+                      : (on) => setState(() {
+                          if (on) {
+                            selected.add(day);
+                          } else {
+                            selected.remove(day);
+                          }
+                          _error = null;
+                        }),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
   Future<void> _save() async {
     if (_busy || !_form.currentState!.validate()) return;
     late final ScheduleItem item;
@@ -164,6 +319,9 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
         ScheduleInputError.dateRange => AppStrings.invalidDateRange,
         ScheduleInputError.timeRange => AppStrings.invalidTimeRange,
         ScheduleInputError.localTime => AppStrings.invalidLocalTime,
+        ScheduleInputError.recurrenceDays => AppStrings.invalidRepeatDays,
+        ScheduleInputError.recurrenceEnd => AppStrings.invalidRepeatEnd,
+        ScheduleInputError.recurrenceEmpty => AppStrings.invalidRepeatWindow,
       });
       return;
     }
@@ -182,11 +340,26 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
   }
 
   Future<void> _delete() async {
+    final item = widget.item!;
+    final single = item.origin != null;
+    final series = item.recurrence != null;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(AppStrings.deleteTitle),
-        content: const Text(AppStrings.deleteMessage),
+        title: Text(
+          single
+              ? AppStrings.deleteOccurrence
+              : series
+              ? AppStrings.deleteSeries
+              : AppStrings.deleteTitle,
+        ),
+        content: Text(
+          single
+              ? AppStrings.occurrenceDeleteMessage
+              : series
+              ? AppStrings.seriesDeleteMessage
+              : AppStrings.deleteMessage,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -204,7 +377,7 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
       _busy = true;
       _error = null;
     });
-    final saved = await widget.controller.delete(_id);
+    final saved = await widget.controller.deleteItem(item);
     if (!mounted) return;
     setState(() => _busy = false);
     if (saved) {
@@ -220,7 +393,9 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
     child: Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.item == null
+          widget.item?.recurrence != null
+              ? AppStrings.editSeries
+              : widget.item == null
               ? AppStrings.addSchedule
               : AppStrings.editSchedule,
         ),
@@ -301,7 +476,9 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
                     ),
                     const SizedBox(height: 12),
                     _pickerTile(
-                      label: _kind == ScheduleKind.unscheduled
+                      label:
+                          _kind == ScheduleKind.unscheduled &&
+                              _frequency == null
                           ? AppStrings.singleDate
                           : AppStrings.startDate,
                       value: AppStrings.date(_startDate),
@@ -341,6 +518,7 @@ class _ScheduleEditorState extends State<ScheduleEditor> {
                       ),
                     ],
                     const SizedBox(height: 16),
+                    if (widget.item?.origin == null) ..._repeatFields(),
                     DropdownButtonFormField<ScheduleCategory>(
                       initialValue: _category,
                       isExpanded: true,

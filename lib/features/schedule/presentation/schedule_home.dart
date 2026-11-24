@@ -7,6 +7,7 @@ import '../../../core/calendar_date.dart';
 import '../domain/schedule_item.dart';
 import 'schedule_controller.dart';
 import 'schedule_editor.dart';
+import 'widgets/month_schedule_view.dart';
 import 'widgets/schedule_views.dart';
 
 enum ScheduleView { day, week, month }
@@ -72,13 +73,33 @@ class _ScheduleHomeState extends State<ScheduleHome>
 
   Future<void> _edit({ScheduleItem? item, int? hour}) async {
     if (!widget.controller.isReady || widget.controller.isSaving) return;
+    final series = item == null ? null : widget.controller.seriesFor(item);
+    final target = series == null
+        ? item
+        : await showDialog<ScheduleItem>(
+            context: context,
+            builder: (context) => SimpleDialog(
+              title: const Text(AppStrings.chooseRepeatScope),
+              children: [
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, item),
+                  child: const Text(AppStrings.editOccurrence),
+                ),
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(context, series),
+                  child: const Text(AppStrings.editSeries),
+                ),
+              ],
+            ),
+          );
+    if (!mounted || (item != null && target == null)) return;
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => ScheduleEditor(
           controller: widget.controller,
           selectedDate: _selected,
-          item: item,
+          item: target,
           initialHour: hour,
         ),
       ),
@@ -247,6 +268,9 @@ class _ScheduleHomeState extends State<ScheduleHome>
           _selected.firstOfMonth.startOfWeek.addDays(42),
         ),
         onOpenDay: _openDay,
+        onEdit: (item) => _edit(item: item),
+        onToggle: _toggle,
+        enabled: !controller.isSaving,
       ),
     };
   }

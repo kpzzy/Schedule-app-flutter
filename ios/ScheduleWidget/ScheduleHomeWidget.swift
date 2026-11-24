@@ -139,12 +139,11 @@ private struct ScheduleWidgetView: View {
             if family == .systemLarge {
                 let first = offset(month, by: -weekdayIndex(month))
                 HStack(spacing: 2) {
-                    ForEach(weekdays, id: \.self) { day in
-                        Text(day).frame(maxWidth: .infinity)
+                    ForEach(weekdays.indices, id: \.self) { index in
+                        Text(weekdays[index]).foregroundStyle(weekdayColor(index)).frame(maxWidth: .infinity)
                     }
                 }
                 .font(.caption2)
-                .foregroundStyle(.secondary)
                 ForEach(0..<6, id: \.self) { row in
                     gridRow(start: offset(first, by: row * 7), monthOnly: true)
                 }
@@ -160,6 +159,7 @@ private struct ScheduleWidgetView: View {
         ForEach(dates, id: \.self) { date in
             HStack {
                 Text("\(shortDate(date)) (\(weekdays[weekdayIndex(date)]))")
+                    .foregroundStyle(weekdayColor(weekdayIndex(date)))
                 Spacer(minLength: 2)
                 Text("\(dayCount(date))개").foregroundStyle(.secondary)
             }
@@ -176,6 +176,7 @@ private struct ScheduleWidgetView: View {
                 VStack(spacing: 1) {
                     if !monthOnly || inMonth {
                         Text(showWeekday ? weekdays[index] : "\(calendar.component(.day, from: date))")
+                            .foregroundStyle(weekdayColor(index))
                         Text(dayCount(date) > 0 || showWeekday ? "\(dayCount(date))" : " ")
                             .foregroundStyle(.secondary)
                     }
@@ -207,6 +208,14 @@ private struct ScheduleWidgetView: View {
     }
 
     private func weekdayIndex(_ date: Date) -> Int { (calendar.component(.weekday, from: date) + 5) % 7 }
+
+    private func weekdayColor(_ index: Int) -> Color {
+        switch index {
+        case 5: return .blue
+        case 6: return .red
+        default: return .primary
+        }
+    }
 
     private func offset(_ date: Date, by days: Int) -> Date {
         calendar.date(byAdding: .day, value: days, to: date) ?? date

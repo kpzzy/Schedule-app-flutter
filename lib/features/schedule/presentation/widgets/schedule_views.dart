@@ -183,7 +183,8 @@ class WeekScheduleView extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 '${AppStrings.shortDate(date)} · ${AppStrings.count(dayItems.length)}',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: AppTheme.weekendColor(date.weekday)),
               ),
             ),
           ),
@@ -235,135 +236,6 @@ class WeekScheduleView extends StatelessWidget {
               onToggle: () => onToggle(item),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class MonthScheduleView extends StatelessWidget {
-  const MonthScheduleView({
-    super.key,
-    required this.selected,
-    required this.today,
-    required this.items,
-    required this.onOpenDay,
-  });
-
-  final CalendarDate selected;
-  final CalendarDate today;
-  final List<ScheduleItem> items;
-  final ValueChanged<CalendarDate> onOpenDay;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      // Preserve readable dates at large font sizes, using horizontal scrolling.
-      final scaled = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final minimumWidth = 350.0 * scaled;
-      final width = constraints.maxWidth > minimumWidth
-          ? constraints.maxWidth
-          : minimumWidth;
-      return SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 96),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(AppStrings.monthHint),
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: width,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        for (final day in AppStrings.weekdays)
-                          Expanded(child: Center(child: Text(day))),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    for (var week = 0; week < 6; week++)
-                      IntrinsicHeight(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (var weekday = 0; weekday < 7; weekday++)
-                              Expanded(
-                                child: _cell(
-                                  context,
-                                  selected.firstOfMonth.startOfWeek.addDays(
-                                    week * 7 + weekday,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-
-  Widget _cell(BuildContext context, CalendarDate date) {
-    final dayItems = items.where((item) => item.occursOn(date)).toList();
-    final colors = Theme.of(context).colorScheme;
-    return Semantics(
-      label:
-          '${AppStrings.date(date)} · ${AppStrings.count(dayItems.length)}'
-          '${date == today ? ' · ${AppStrings.today}' : ''}',
-      button: true,
-      selected: date == selected,
-      child: InkWell(
-        onTap: () => onOpenDay(date),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 100),
-          margin: const EdgeInsets.all(2),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: date == selected ? colors.primaryContainer : colors.surface,
-            border: Border.all(
-              color: date == today ? colors.primary : colors.outlineVariant,
-              width: date == today ? 2 : 1,
-            ),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${date.day}',
-                style: TextStyle(
-                  fontWeight: date == today
-                      ? FontWeight.bold
-                      : FontWeight.normal,
-                  color: date.month == selected.month
-                      ? colors.onSurface
-                      : colors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              for (final item in dayItems.take(2))
-                Text(
-                  '${item.isCompleted ? '✓ ' : ''}${item.title}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppTheme.categoryColor(item.category),
-                  ),
-                ),
-              if (dayItems.length > 2)
-                Text(AppStrings.more(dayItems.length - 2)),
-            ],
-          ),
-        ),
       ),
     );
   }

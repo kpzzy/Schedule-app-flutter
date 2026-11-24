@@ -23,7 +23,8 @@ final class JsonScheduleRepository implements ScheduleRepository {
     if (!await file.exists()) return [];
 
     final Object? decoded = jsonDecode(await file.readAsString());
-    if (decoded is! Map<String, Object?> || decoded['schemaVersion'] != 1) {
+    if (decoded is! Map<String, Object?> ||
+        (decoded['schemaVersion'] != 1 && decoded['schemaVersion'] != 2)) {
       throw const FormatException('Unsupported schedule document');
     }
     final records = decoded['items'];
@@ -46,7 +47,7 @@ final class JsonScheduleRepository implements ScheduleRepository {
   Future<void> saveAll(List<ScheduleItem> items) {
     // Encode before queueing so callers cannot mutate the pending snapshot.
     final content = jsonEncode({
-      'schemaVersion': 1,
+      'schemaVersion': 2,
       'items': items.map((item) => item.toJson()).toList(),
     });
     final operation = _pendingWrite.then((_) async {

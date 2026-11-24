@@ -2,8 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:schedule_app/app/app_strings.dart';
 import 'package:schedule_app/app/schedule_app.dart';
+import 'package:schedule_app/app/app_theme.dart';
 import 'package:schedule_app/core/calendar_date.dart';
 import 'package:schedule_app/features/schedule/domain/schedule_item.dart';
+import 'package:schedule_app/features/schedule/domain/schedule_recurrence.dart';
 
 import 'support/fake_schedule_repository.dart';
 
@@ -20,6 +22,88 @@ Future<void> startApp(
 }
 
 void main() {
+  testWidgets('작은 월간 화면은 달력 아래에 전체 제목을 표시하고 주말 요일을 구분한다', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final today = CalendarDate.fromLocal(DateTime.now());
+    const title = '작은 화면에서도 두 줄 이상으로 읽을 수 있는 가상의 월간 일정 제목입니다';
+    final repository = FakeScheduleRepository()
+      ..stored = [
+        ScheduleItem(
+          id: 'test-month',
+          title: title,
+          kind: ScheduleKind.unscheduled,
+          category: ScheduleCategory.personal,
+          date: today,
+        ),
+      ];
+    await startApp(tester, repository);
+    await tester.tap(find.text(AppStrings.month));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.text('토')).style?.color,
+      AppTheme.weekendColor(DateTime.saturday),
+    );
+    expect(
+      tester.widget<Text>(find.text('일')).style?.color,
+      AppTheme.weekendColor(DateTime.sunday),
+    );
+    await tester.scrollUntilVisible(
+      find.text(title),
+      150,
+      scrollable: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    expect(tester.widget<Text>(find.text(title)).maxLines, isNull);
+    expect(find.text(AppStrings.monthAgenda), findsOneWidget);
+  });
+
+  testWidgets('기존 단일 일정을 매일 반복으로 바꾸고 회차 편집 범위를 고른다', (tester) async {
+    final today = CalendarDate.fromLocal(DateTime.now());
+    const title = '가상 반복 전환 일정';
+    final repository = FakeScheduleRepository()
+      ..stored = [
+        ScheduleItem(
+          id: 'test-to-repeat',
+          title: title,
+          kind: ScheduleKind.unscheduled,
+          category: ScheduleCategory.study,
+          date: today,
+        ),
+      ];
+    await startApp(tester, repository);
+    await tester.tap(find.text(title));
+    await tester.pumpAndSettle();
+    final field = find.byType(DropdownButtonFormField<String>);
+    await tester.ensureVisible(field);
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text(AppStrings.repeatName(RecurrenceFrequency.daily)).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.save));
+    await tester.pumpAndSettle();
+    expect(
+      repository.stored.single.recurrence?.frequency,
+      RecurrenceFrequency.daily,
+    );
+
+    await tester.tap(find.byTooltip(AppStrings.next));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(title));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.editSeries), findsOneWidget);
+    await tester.tap(find.text(AppStrings.editOccurrence));
+    await tester.pumpAndSettle();
+    expect(field, findsNothing);
+    expect(find.text(AppStrings.date(today.addDays(1))), findsOneWidget);
+  });
+
   testWidgets('빈 상태에서 추가한 일정은 일간·주간·월간에 함께 나타난다', (tester) async {
     final repository = FakeScheduleRepository();
     await startApp(tester, repository);
@@ -39,6 +123,14 @@ void main() {
     expect(find.text('가상 독서'), findsOneWidget);
     await tester.tap(find.text(AppStrings.month));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('가상 독서'),
+      150,
+      scrollable: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
     expect(find.text('가상 독서'), findsOneWidget);
   });
 

@@ -54,7 +54,7 @@ void main() {
   test('미래 스키마 버전과 중복 ID를 거부한다', () async {
     final file = File('${directory.path}/schedules.json');
     await file.writeAsString(
-      jsonEncode({'schemaVersion': 2, 'items': <Object?>[]}),
+      jsonEncode({'schemaVersion': 3, 'items': <Object?>[]}),
     );
     await expectLater(repository.load(), throwsFormatException);
     await file.writeAsString(
@@ -64,6 +64,22 @@ void main() {
       }),
     );
     await expectLater(repository.load(), throwsFormatException);
+  });
+
+  test('버전 1 일정은 내용 그대로 읽고 첫 저장에서 버전 2로 전환한다', () async {
+    final file = File('${directory.path}/schedules.json');
+    await file.writeAsString(
+      jsonEncode({
+        'schemaVersion': 1,
+        'items': [item.toJson()],
+      }),
+    );
+    final loaded = await repository.load();
+    expect(loaded.single.toJson(), item.toJson());
+    await repository.saveAll(loaded);
+    final saved = jsonDecode(await file.readAsString()) as Map<String, Object?>;
+    expect(saved['schemaVersion'], 2);
+    expect((await repository.load()).single.toJson(), item.toJson());
   });
 
   test('원본 교체 전 쓰기 실패 시 기존 데이터가 남고 재시도할 수 있다', () async {
