@@ -7,6 +7,9 @@ Thumbs.db
 .idea/
 
 # Local environment and credentials
+/credential.txt
+/credential.txt.*
+/scripts/git_with_credential.py
 /.aws/
 /.codex/
 .env
