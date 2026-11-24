@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/app_strings.dart';
 import '../../../../app/app_theme.dart';
@@ -201,9 +201,9 @@ class WeekScheduleView extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: hour.isOccupied
                             ? Theme.of(context).colorScheme.primary
-                            : Theme.of(
-                                context,
-                              ).colorScheme.surfaceContainerHighest,
+                            : Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

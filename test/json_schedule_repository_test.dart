@@ -53,7 +53,9 @@ void main() {
 
   test('미래 스키마 버전과 중복 ID를 거부한다', () async {
     final file = File('${directory.path}/schedules.json');
-    await file.writeAsString(jsonEncode({'schemaVersion': 2, 'items': []}));
+    await file.writeAsString(
+      jsonEncode({'schemaVersion': 2, 'items': <Object?>[]}),
+    );
     await expectLater(repository.load(), throwsFormatException);
     await file.writeAsString(
       jsonEncode({

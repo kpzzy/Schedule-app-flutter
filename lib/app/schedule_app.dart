@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../features/schedule/domain/schedule_repository.dart';
 import '../features/schedule/presentation/schedule_controller.dart';

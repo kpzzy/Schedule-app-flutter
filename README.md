@@ -2,7 +2,7 @@
 
 Android·iOS용 Flutter 개인 스케줄 앱의 초기 프로젝트입니다. 한국어 UI로 일간·주간·월간 계획을 보고, 같은 일정 데이터를 편집하도록 구성했습니다.
 
-**현재 상태: 소스와 플랫폼 프로젝트, 테스트 코드를 준비한 단계입니다. 서버에는 Flutter·Dart·JDK·Android SDK가 없어 `flutter analyze`, `flutter test`, Android·iOS 빌드 및 기기 실행은 아직 수행하지 않았습니다.**
+이 프로젝트의 Android 빌드 설정은 Flutter 3.50.1과 Android Studio의 Java 25 환경을 기준으로 구성했습니다. 플랫폼별 빌드와 기기 실행 확인 방법은 아래에 있습니다.
 
 ## 기본 구현 범위
 
@@ -20,17 +20,17 @@ Android·iOS용 Flutter 개인 스케줄 앱의 초기 프로젝트입니다. �
 
 ## 개발 환경
 
-기준 버전은 **Flutter 3.38.5 / Dart 3.10.4**입니다. 최신 버전이라는 의미가 아니라, 공식 태그의 템플릿과 의존성 기준을 고정한 것입니다. `.fvmrc`에도 같은 버전을 기록했습니다. FVM 사용은 선택 사항이며, 사용할 경우 아래 `flutter` 명령을 `fvm flutter`로 실행합니다.
+기준 버전은 **Flutter 3.50.1 / Dart 3.14.0**입니다. `.fvmrc`에도 같은 버전을 기록했습니다. FVM을 사용하는 경우 아래 `flutter` 명령을 `fvm flutter`로 실행합니다.
 
 | 구분 | 프로젝트 설정 / 로컬 준비 사항 |
 | --- | --- |
 | Android | Android 7.0(API 24) 이상, compile/target SDK 36 |
-| Android 빌드 | JDK 17, Android SDK Platform 36, Build Tools 35.0.0, SDK 명령줄 도구 |
-| Android 플러그인 | AGP 8.11.1, Gradle 8.14, Kotlin 2.2.20 |
+| Android 빌드 | JDK 25 또는 JDK 21, Android SDK Platform 36, Build Tools 36.0.0, SDK 명령줄 도구 |
+| Android 플러그인 | AGP 9.3.1, Gradle 9.5.0, Kotlin 2.4.20 |
 | iOS | iOS 13.0 이상, macOS·Xcode·CocoaPods 필요 |
 | 앱 식별자 | Android `com.example.schedule_app`, iOS `com.example.scheduleApp` — 개발용 자리표시자 |
 
-네이티브 설정은 [Flutter 3.38.5 공식 템플릿](https://github.com/flutter/flutter/tree/3.38.5/packages/flutter_tools/templates/app)에 기반합니다. Android 버전 조합은 [공식 AGP 8.11 호환성 표](https://developer.android.com/build/releases/agp-8-11-0-release-notes)를 참고했습니다. 이 설정의 실제 플랫폼 빌드는 아직 검증하지 않았습니다.
+Android는 [Flutter 3.50.1 공식 템플릿](https://github.com/flutter/flutter/tree/3.50.1/packages/flutter_tools/templates/app)의 Gradle, AGP, Kotlin 버전을 사용합니다. Gradle을 실행하는 JDK 버전과 Android 앱의 Java·Kotlin 컴파일 대상은 별개이며, 컴파일 대상은 JVM 17로 설정합니다. [AGP 호환성 표](https://developer.android.com/build/releases/agp-9-3-0-release-notes), [Gradle의 Java 호환성](https://docs.gradle.org/9.5.0/userguide/compatibility.html#java)
 
 ## 처음 실행하기
 
@@ -49,13 +49,13 @@ flutter devices
 flutter run
 ```
 
-`pubspec.lock`은 Flutter 3.38.5 저장소의 잠금 파일에서 필요한 의존성만 추출하고 pub.dev 메타데이터와 해시를 대조해 준비했습니다. **이 서버에서 SDK의 의존성 해결 명령을 실행한 결과는 아닙니다.** 로컬에서 `flutter pub get`으로 확인하고, 잠금 파일이 달라지면 SDK 버전과 변경 내용을 검토한 뒤 함께 버전 관리합니다.
+`pubspec.lock`은 앱과 함께 버전 관리합니다. `flutter pub get`으로 잠금 파일이 달라지면 사용한 SDK 버전과 패키지 변경을 확인합니다.
 
 SDK 경로는 `android/local.properties`, iOS의 생성된 xcconfig 등에 로컬 도구가 기록합니다. 이 파일들은 Git에서 제외됩니다. 새 프로젝트를 다시 생성하는 `flutter create .`는 필요하지 않습니다.
 
 ### Android
 
-Android Studio의 SDK Manager에서 API 36, 빌드 도구, SDK 명령줄 도구를 준비하고 JDK 17을 사용합니다. Flutter가 요구하는 NDK는 `flutter.ndkVersion`을 따릅니다. 필요한 SDK 패키지 다운로드와 라이선스 동의가 최초 빌드에 필요할 수 있습니다.
+Android Studio의 SDK Manager에서 **Android SDK Platform 36** (`platforms;android-36`), Build Tools 36.0.0, SDK 명령줄 도구를 준비합니다. `flutter doctor -v`로 Flutter가 사용하는 Java 버전을 확인할 수 있습니다. 필요한 Android SDK 패키지와 NDK 28.2.13676358은 최초 빌드 시 설치될 수 있습니다.
 
 ```sh
 flutter doctor --android-licenses
@@ -102,7 +102,7 @@ test/                                      # 날짜·모델·저장소·상태·
 
 상태는 Flutter의 `ChangeNotifier`로 관리합니다. 화면은 하나의 `ScheduleController`와 `ScheduleRepository`를 공유합니다. `path_provider` 2.1.5는 [Android·iOS의 앱 저장 경로를 제공하는 공식 패키지](https://pub.dev/packages/path_provider/versions/2.1.5)로 선택했습니다. 별도 상태 관리·데이터베이스·ID 패키지는 추가하지 않았습니다. 잠금 파일에 있는 Linux·Windows용 전이 의존성은 패키지 구조상 포함되며, 앱의 웹·데스크톱 프로젝트를 추가한 것은 아닙니다.
 
-앱 문구는 `lib/app/app_strings.dart`에서 관리하고, Flutter 기본 날짜·시간 선택기는 `flutter_localizations`를 사용합니다. 월간 달력은 큰 글자에서도 날짜와 조작 영역을 유지하도록 가로로 스크롤할 수 있습니다.
+앱 문구는 `lib/app/app_strings.dart`에서 관리합니다. Flutter 3.50에서 분리된 공식 `material_ui` 패키지가 Material 위젯과 날짜·시간 선택기의 한국어 번역을 제공합니다. 월간 달력은 큰 글자에서도 날짜와 조작 영역을 유지하도록 가로로 스크롤할 수 있습니다. [Flutter Material UI 이전 안내](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui)
 
 ## 데이터와 저장 규칙
 
@@ -117,19 +117,9 @@ test/                                      # 날짜·모델·저장소·상태·
 
 ## 검증 상태와 다음 확인
 
-서버에서 실시한 점검:
+서버의 임시 Flutter 3.50.1 환경에서 의존성 해결, Dart 포맷, 정적 분석과 단위·위젯 테스트 33개를 확인했습니다. 날짜 경계와 일정 저장·복원, 오류 복구, 화면 전환, 한국어 날짜·시간 선택기를 검증했습니다.
 
-- Dart 소스의 문법 파싱과 포맷 적용: 임시 `dart_style` WASM 포트 사용. SDK의 `dart format`·타입 분석을 대체하지 않습니다.
-- Android XML, iOS plist·스토리보드·워크스페이스 XML, JSON·YAML 구조 검사
-- 공식 템플릿 치환, 로컬 import와 리소스 참조, 의존성 잠금 정보 점검
-- Android·iOS PNG 23개의 공식 원본 일치 여부, PNG 체크섬, iOS 앱 아이콘 크기 검사
-- Git 공백 오류와 민감정보 패턴 검사
-
-SDK 부재로 실행하지 못한 항목:
-
-- `flutter pub get`, `dart format`의 SDK 기준 확인, `flutter analyze`
-- `flutter test`에 포함된 날짜 경계·저장 후 재조회·실패 복구·화면 조작 테스트
-- Android·iOS 빌드, 저장 플러그인과 기기 UI 동작 검증
+Android APK 빌드는 서버의 Android SDK 부재로 시작 단계에서 중단됐습니다. Windows의 Java 25 환경에서 `flutter build apk --debug`와 기기 실행을 확인해야 합니다. iOS 빌드와 시뮬레이터 실행은 macOS에서 확인합니다.
 
 로컬에서는 위의 공통 명령을 실행하고 다음 흐름을 확인합니다.
 

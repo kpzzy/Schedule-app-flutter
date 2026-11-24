@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:schedule_app/app/app_strings.dart';
 import 'package:schedule_app/app/schedule_app.dart';
 import 'package:schedule_app/core/calendar_date.dart';
@@ -97,6 +97,39 @@ void main() {
     await tester.tap(find.text(AppStrings.retry));
     await tester.pumpAndSettle();
     expect(find.byTooltip(AppStrings.addSchedule), findsOneWidget);
+  });
+
+  testWidgets('일정 편집 화면의 날짜와 시간 선택기가 한국어로 열린다', (tester) async {
+    await startApp(tester, FakeScheduleRepository());
+    await tester.tap(find.byTooltip(AppStrings.addSchedule));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, AppStrings.singleDate));
+    await tester.pumpAndSettle();
+    final dateDialog = find.byType(DatePickerDialog);
+    expect(
+      find.descendant(of: dateDialog, matching: find.text('날짜 선택')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(of: dateDialog, matching: find.text(AppStrings.cancel)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButtonFormField<ScheduleKind>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.kindName(ScheduleKind.timed)).last);
+    await tester.pumpAndSettle();
+    final startTime = find.widgetWithText(ListTile, AppStrings.startTime);
+    await tester.ensureVisible(startTime);
+    await tester.tap(startTime);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(TimePickerDialog),
+        matching: find.text('시간 입력'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('보기 전환은 선택 날짜를 보존하고 월간 날짜는 일간으로 연결된다', (tester) async {

@@ -13,6 +13,7 @@
 - 초기 개발 서버는 Ubuntu이며, 사용자 확인 기준으로 Flutter SDK, JDK, Android SDK, Android Studio 등 개발 도구가 준비되지 않은 상태다. Xcode도 없다.
 - 이 내용은 초기 상태를 기록한 것이다. 환경 구성 작업 후에는 실제 설치 상태를 확인하고 이 절을 갱신한다.
 - 2026-11-24 확인 결과 이 서버의 PATH와 일반 설치 경로에는 Flutter SDK, Dart, JDK, Android SDK가 없다. 이번 기본 틀 작업에서는 SDK를 설치하지 않았으며, 공식 Flutter 3.38.5 템플릿을 참고해 Android·iOS 소스를 준비했다. 임시 WASM 포맷 도구를 통한 Dart 문법·포맷 점검은 Flutter 분석·테스트·플랫폼 빌드 검증과 구분한다.
+- Flutter 3.50.1로 올릴 때는 서버의 `/tmp`에 준비한 임시 SDK로 의존성 해결, 포맷, 정적 분석, 단위·위젯 테스트를 확인했다. 서버에는 Android SDK와 Xcode가 없어 플랫폼 빌드는 사용자 환경에서 확인한다.
 - 도구 설치 전에도 요구사항 정리, 설계, 소스 작성은 가능하지만 Flutter 명령을 통한 프로젝트 생성·분석·테스트·앱 빌드는 실행할 수 없다. 소스 검토와 실행 검증 결과를 구분해 보고한다.
 - Android는 Ubuntu에서 Flutter SDK, 호환 JDK, Android SDK 명령줄 도구 및 필요한 빌드 패키지를 준비하면 빌드할 수 있다. Android Studio나 에뮬레이터 설치를 빌드의 필수 조건으로 취급하지 않는다.
 - iOS 빌드와 시뮬레이터 검증은 이 Ubuntu 서버에서 직접 수행할 수 없다. 별도 macOS·Xcode 환경 또는 이를 갖춘 CI가 필요하다.
@@ -118,7 +119,7 @@ Flutter로 Android와 iOS를 지원하는 개인용 스케줄 앱을 개발한�
 
 ## Flutter 구현 원칙
 
-- 현재 프로젝트의 기준은 Flutter 3.38.5 / Dart 3.10.4이며 `.fvmrc`와 README에 기록한다. Android는 공식 템플릿의 API 24 이상, iOS는 13.0 이상으로 구성했다. SDK 버전 변경 시 플랫폼 설정·잠금 파일·테스트를 함께 확인한다.
+- 현재 프로젝트의 기준은 Flutter 3.50.1 / Dart 3.14.0이며 `.fvmrc`와 README에 기록한다. Android는 Flutter 3.50.1 공식 템플릿의 Gradle 9.5.0, AGP 9.3.1, Kotlin 2.4.20 조합으로 구성한다. Android는 API 24 이상, iOS는 13.0 이상으로 구성했다. SDK 버전 변경 시 플랫폼 설정·잠금 파일·테스트를 함께 확인한다.
 - 기본 골격은 `ChangeNotifier` 상태 관리와 `path_provider`로 경로를 주입하는 JSON 저장소를 사용한다. `schemaVersion: 1`의 기존 데이터를 읽지 못한 경우 자동 초기화하거나 덮어쓰지 않는다. 구체적인 구현·검증 상태는 README를 갱신한다.
 
 - 프로젝트 생성 전 Flutter SDK, Dart, Android 개발 도구의 사용 가능 여부를 확인한다.
